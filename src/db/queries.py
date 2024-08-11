@@ -20,7 +20,7 @@ async def insert_measurements(engine: AsyncEngine, data: List[dict], type: str) 
             {"time": val["time"], "value": val["value"], "type": type, "created_at": time.time()}
             for val in data
         ]
-        _ = await conn.execute(insert(measurement_table, val_dict))
+        _ = await conn.execute(insert(measurement_table), val_dict)
 
 
 async def select_measurements(
