@@ -7,7 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from db.models import measurement_table
 
 
-async def insert_measurement(engine: AsyncEngine, data: List[dict], type: str) -> None:
+async def insert_measurements(engine: AsyncEngine, data: List[dict], type: str) -> None:
+    """Perform INSERT command to insert new measurements to the database.
+
+    Args:
+        engine (AsyncEngine): SQLAlchemy DB engine.
+        data (List[dict]): Measurement data to be inserted.
+        type (str): Measurement type.
+    """
     async with engine.begin() as conn:
         val_dict = [
             {"time": val["time"], "value": val["value"], "type": type, "created_at": time.time()}
@@ -19,7 +26,19 @@ async def insert_measurement(engine: AsyncEngine, data: List[dict], type: str) -
 async def select_measurements(
     engine: AsyncEngine, time_from: int, time_to: int, type: str
 ) -> List[dict]:
+    """Performs SELECT command to retrieve measurements from the database.
+
+    Args:
+        engine (AsyncEngine): SQLAlchemy DB engine.
+        time_from (int): Start of the time interval.
+        time_to (int): End of the time interval.
+        type (str): Measurement type.
+
+    Returns:
+        List[dict]: Found measurements.
+    """
     async with engine.connect() as conn:
+        # First filter only rows of specified measurement type and within the time interval.
         filtered = (
             select(measurement_table)
             .where(
@@ -32,18 +51,20 @@ async def select_measurements(
             .alias()
         )
 
+        # Next, as we're not having any constraints on the table - in order to maximize write
+        # throughput - we need to drop duplicates. For each timestamp, we order all records by
+        # created_at timestamp.
         ranked = select(
             filtered.c.time,
             filtered.c.value,
             filtered.c.created_at,
-            func.rank()
+            func.row_number()
             .over(partition_by=filtered.c.time, order_by=filtered.c.created_at.asc())
-            .label("rank"),
+            .label("rn"),
         ).alias()
 
-        query = select(ranked.c.time, ranked.c.value, ranked.c.rank, filtered.c.created_at).where(
-            ranked.c.rank == 1
-        )
+        # Finally, for each partition, we select rows that have minimal created_at timestamp.
+        query = select(ranked.c.time, ranked.c.value).where(ranked.c.rn == 1)
         result = await conn.execute(query)
 
         return [dict(row) for row in result.mappings()]
