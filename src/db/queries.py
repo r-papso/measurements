@@ -1,3 +1,4 @@
+import time
 from typing import List
 
 from sqlalchemy import and_, func, insert, select
@@ -6,15 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from db.models import measurement_table
 
 
-async def insert_measurement(
-    engine: AsyncEngine, time: int, value: float, type: str, created_at: float
-) -> None:
+async def insert_measurement(engine: AsyncEngine, data: List[dict], type: str) -> None:
     async with engine.begin() as conn:
-        _ = await conn.execute(
-            insert(measurement_table).values(
-                time=time, value=value, type=type, created_at=created_at
-            )
-        )
+        val_dict = [
+            {"time": val["time"], "value": val["value"], "type": type, "created_at": time.time()}
+            for val in data
+        ]
+        _ = await conn.execute(insert(measurement_table, val_dict))
 
 
 async def select_measurements(

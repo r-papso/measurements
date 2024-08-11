@@ -1,4 +1,3 @@
-import time
 from aiohttp import web
 
 from db.queries import insert_measurement, select_measurements
@@ -16,15 +15,7 @@ class MeasurementsHandler:
 
         try:
             data = await request.json()
-            created_at = time.time()
-
-            await insert_measurement(
-                engine=db_engine,
-                time=data["time"],
-                value=data["value"],
-                type=mtype,
-                created_at=created_at,
-            )
+            await insert_measurement(engine=db_engine, data=data, type=mtype)
         except Exception as e:
             return web.HTTPInternalServerError(text=repr(e))
 
