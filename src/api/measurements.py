@@ -27,7 +27,7 @@ class MeasurementsHandler:
 
         try:
             data = await request.json()
-            await insert_measurements(engine=db_engine, data=data, type=mtype)
+            await insert_measurements(engine=db_engine, data=data["values"], type=mtype)
         except Exception as e:
             return web.HTTPInternalServerError(text=repr(e))
 
